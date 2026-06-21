@@ -1,1 +1,1 @@
-# teamcit-pipeline-dashboard
+# teamcity-pipeline-dashboard
