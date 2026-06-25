@@ -1,0 +1,45 @@
+server:
+  port: 8976
+spring:
+  application:
+    name: teamcity-pipeline-dashboard
+  thymeleaf:
+    cache: false
+
+teamcity:
+  url: http://localhost:8111
+  token: ${TEAMCITY_TOKEN:eyJ0eXAiOiAiVENWMiJ9.d2dMM1lPVUhMeWJLVkxsaGkxaWhoV2dJZ2I2.MThkYjEwMWItOTVjZS00Y2M2LWFhMTMtNTUwZmI4YTQ4ZGJh}
+  projects:
+    - id: project1
+      name: project1
+      environments: [dev, uat, uat1, test, prod]
+      buildConfigId: MyProject_Project1
+      deployConfigId: Alpha_Deploy
+      healthCheckUrls:
+        dev: http://dev.example.com/alpha
+        uat: http://uat.example.com/alpha
+        uat1: http://uat1.example.com/alpha
+        test: http://test.example.com/alpha
+        prod: http://prod.example.com/alpha
+    - id: project-beta
+      name: Beta API Gateway
+      environments: [dev, uat, uat1, test, prod]
+      buildConfigId: MyProject_Project1
+      deployConfigId: Beta_Deploy
+      healthCheckUrls:
+        dev: http://dev.example.com/beta
+        uat: http://uat.example.com/beta
+        uat1: http://uat1.example.com/beta
+        test: http://test.example.com/beta
+        prod: http://prod.example.com/beta
+    - id: project-gamma
+      name: Gamma Frontend Dashboard
+      environments: [dev, uat, uat1, test, prod]
+      buildConfigId: MyProject_Project1
+      deployConfigId: Gamma_Deploy
+      healthCheckUrls:
+        dev: http://dev.example.com/gamma
+        uat: http://uat.example.com/gamma
+        uat1: http://uat1.example.com/gamma
+        test: http://test.example.com/gamma
+        prod: http://prod.example.com/gamma

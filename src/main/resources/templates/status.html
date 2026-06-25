@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Status Health Monitor</title>
+    <link rel="stylesheet" th:href="@{/css/index.css}">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo-section">
+                <h1>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #10b981;">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                    </svg>
+                    Server Status Monitor
+                </h1>
+                <p>Real-time OpenShift Deploy Health Check</p>
+            </div>
+            <div class="nav-tabs">
+                <a th:href="@{/status}" class="nav-tab active">Server Status</a>
+                <a th:href="@{/dashboard}" class="nav-tab">Pipelines</a>
+            </div>
+            <a th:href="${teamcityUrl}" target="_blank" class="teamcity-badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+                TeamCity Server
+            </a>
+        </header>
+
+        <main>
+            <!-- System Health Stats Overview -->
+            <div class="status-stats-grid">
+                <!-- Total Monitored -->
+                <div class="stat-card">
+                    <div class="stat-icon-wrapper blue">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="stat-total-monitored">0</span>
+                        <span class="stat-label">Total Services</span>
+                    </div>
+                </div>
+                <!-- Services UP -->
+                <div class="stat-card">
+                    <div class="stat-icon-wrapper green">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="stat-services-up">0</span>
+                        <span class="stat-label">Endpoints UP</span>
+                    </div>
+                </div>
+                <!-- Services DOWN -->
+                <div class="stat-card">
+                    <div class="stat-icon-wrapper red">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="stat-services-down">0</span>
+                        <span class="stat-label">Endpoints DOWN</span>
+                    </div>
+                </div>
+                <!-- Health Index -->
+                <div class="stat-card">
+                    <div class="stat-icon-wrapper cyan">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="stat-health-index">100%</span>
+                        <span class="stat-label">Health Index</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Search & Control Bar -->
+            <div class="status-controls-bar">
+                <div class="search-filter-group">
+                    <div class="search-wrapper">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="status-search-input" class="search-input" placeholder="Search projects by name or ID...">
+                    </div>
+                    <div class="filter-wrapper">
+                        <select id="status-env-filter">
+                            <option value="all">ALL ENVIRONMENTS</option>
+                            <option value="dev">DEV</option>
+                            <option value="uat">UAT</option>
+                            <option value="uat1">UAT1</option>
+                            <option value="test">TEST</option>
+                            <option value="prod">PROD</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <!-- Refresh Button -->
+                    <button class="btn btn-primary" id="refresh-all-btn" style="width: auto; padding: 0.6rem 1.25rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                        </svg>
+                        Refresh All
+                    </button>
+
+                    <!-- Layout Toggle -->
+                    <div class="layout-toggle-group">
+                        <button class="toggle-btn active" id="layout-table-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="3" y1="12" x2="21" y2="12"></line>
+                                <line x1="3" y1="6" x2="21" y2="6"></line>
+                                <line x1="3" y1="18" x2="21" y2="18"></line>
+                            </svg>
+                            Table
+                        </button>
+                        <button class="toggle-btn" id="layout-grid-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                                <rect x="3" y="14" width="7" height="7"></rect>
+                            </svg>
+                            Cards
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1. Table View Container -->
+            <div id="table-view-container" class="glass-table-container">
+                <table class="status-matrix-table">
+                    <thead>
+                        <tr>
+                            <th>Project / Service</th>
+                            <th>DEV</th>
+                            <th>UAT</th>
+                            <th>UAT1</th>
+                            <th>TEST</th>
+                            <th>PROD</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="project : ${projects}" th:data-project-id="${project.id}" class="project-status-row">
+                            <td class="project-cell">
+                                <div class="proj-name" th:text="${project.name}">Project Name</div>
+                                <div class="proj-id" th:text="${project.id}">project-id</div>
+                            </td>
+                            <!-- For each environment, render a cell -->
+                            <td th:each="env : ${project.environments}" 
+                                th:data-env="${env}" 
+                                th:data-url="${project.healthCheckUrls.get(env)}"
+                                class="status-cell checking"
+                                th:id="'cell-' + ${project.id} + '-' + ${env}">
+                                <div class="cell-wrapper">
+                                    <span class="status-pill font-mono">CHECKING</span>
+                                    <div class="endpoint-tooltip">Checking...</div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 2. Grid View Container (initially hidden) -->
+            <div id="grid-view-container" class="status-grid-view" style="display: none;">
+                <div class="service-health-card project-status-card" th:each="project : ${projects}" th:data-project-id="${project.id}">
+                    <div class="service-card-title" th:text="${project.name}">Project Name</div>
+                    <div class="service-card-id" th:text="${project.id}">project-id</div>
+                    <div class="env-health-list">
+                        <!-- For each environment, render a row -->
+                        <div class="env-health-row" th:each="env : ${project.environments}" 
+                             th:data-env="${env}"
+                             th:data-url="${project.healthCheckUrls.get(env)}"
+                             th:id="'card-row-' + ${project.id} + '-' + ${env}">
+                            <span class="env-health-name" th:text="${env}">DEV</span>
+                            <!-- Sparkline Uptime blocks wrapper -->
+                            <div class="uptime-history-wrap" th:id="'history-' + ${project.id} + '-' + ${env}">
+                                <!-- 12 small boxes for uptime history sparkline -->
+                                <div class="uptime-block"></div>
+                                <div class="uptime-block"></div>
+                                <div class="uptime-block"></div>
+                                <div class="uptime-block"></div>
+                                <div class="uptime-block"></div>
+                                <div class="uptime-block"></div>
+                                <div class="uptime-block"></div>
+                                <div class="uptime-block"></div>
+                                <div class="uptime-block"></div>
+                                <div class="uptime-block"></div>
+                                <div class="uptime-block"></div>
+                                <div class="uptime-block"></div>
+                                <span class="uptime-percentage">--%</span>
+                            </div>
+                            <span class="status-pill checking" th:id="'pill-' + ${project.id} + '-' + ${env}">CHECKING</span>
+                            <div class="endpoint-tooltip">Checking...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script th:src="@{/js/dashboard.js}"></script>
+</body>
+</html>
