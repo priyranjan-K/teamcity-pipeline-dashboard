@@ -248,7 +248,12 @@
             display: block;
             margin-bottom: 3px;
         }
-        .version-wrap select {
+        /* Custom version dropdown */
+        .ver-dropdown {
+            position: relative;
+            width: 100%;
+        }
+        .ver-dropdown-trigger {
             width: 100%;
             background: #0d1117;
             border: 1px solid rgba(255,255,255,0.08);
@@ -256,10 +261,79 @@
             padding: 0.3rem 0.5rem;
             color: #d1d5db;
             font-size: 0.78rem;
-            outline: none;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            user-select: none;
+            transition: border-color 0.15s;
         }
-        .version-wrap select:focus { border-color: #3b82f6; }
+        .ver-dropdown-trigger:hover, .ver-dropdown.open .ver-dropdown-trigger {
+            border-color: #3b82f6;
+        }
+        .ver-dropdown-trigger .ver-num {
+            font-weight: 600;
+            color: #e5e7eb;
+            flex-shrink: 0;
+        }
+        .ver-dropdown-trigger .ver-date {
+            font-size: 0.68rem;
+            color: #6b7280;
+            flex: 1;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ver-dropdown-trigger .ver-arrow {
+            flex-shrink: 0;
+            opacity: 0.5;
+            transition: transform 0.15s;
+        }
+        .ver-dropdown.open .ver-dropdown-trigger .ver-arrow { transform: rotate(180deg); }
+        .ver-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 3px);
+            left: 0;
+            right: 0;
+            background: #161b22;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 7px;
+            overflow: hidden;
+            z-index: 200;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .ver-dropdown.open .ver-dropdown-menu { display: block; }
+        .ver-dropdown-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            cursor: pointer;
+            gap: 8px;
+            transition: background 0.1s;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .ver-dropdown-item:last-child { border-bottom: none; }
+        .ver-dropdown-item:hover { background: rgba(59,130,246,0.12); }
+        .ver-dropdown-item.selected { background: rgba(59,130,246,0.18); }
+        .ver-dropdown-item .ver-item-num {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #e5e7eb;
+            flex-shrink: 0;
+        }
+        .ver-dropdown-item .ver-item-date {
+            font-size: 0.68rem;
+            color: #6b7280;
+            text-align: right;
+        }
+        /* hidden native select kept for form/value compat */
+        .ver-hidden-select { display: none; }
 
         /* ── Buttons ── */
         .btn-action {
@@ -506,9 +580,17 @@
                     <!-- Build version -->
                     <div class="version-wrap">
                         <label>Build Version</label>
-                        <select class="build-version-selector" th:id="'build-version-' + ${project.id}">
-                            <option value="">Loading...</option>
-                        </select>
+                        <!-- Custom dropdown: build# left, date right -->
+                        <div class="ver-dropdown" th:id="'ver-dropdown-' + ${project.id}">
+                            <div class="ver-dropdown-trigger" th:id="'ver-trigger-' + ${project.id}">
+                                <span class="ver-num">Loading...</span>
+                                <span class="ver-date"></span>
+                                <svg class="ver-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </div>
+                            <div class="ver-dropdown-menu" th:id="'ver-menu-' + ${project.id}"></div>
+                        </div>
+                        <!-- Hidden select for value compat -->
+                        <select class="ver-hidden-select build-version-selector" th:id="'build-version-' + ${project.id}"></select>
                     </div>
 
                     <button class="btn-action btn-deploy trigger-deploy-btn" th:id="'deploy-btn-' + ${project.id}" disabled>
@@ -608,6 +690,6 @@
 </div>
 
 <div class="toast-container" id="toast-container"></div>
-<script th:src="@{/js/dashboard.js}"></script>
+<script th:src="@{/js/dashboard.js(v=4)}"></script>
 </body>
 </html>

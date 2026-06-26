@@ -206,42 +206,101 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Load last 10 successful builds into the dropdown
     async function loadLastSuccessfulBuilds(projectId, buildConfig, branch) {
-        const selectEl = document.getElementById(`build-version-${projectId}`);
-        const deployBtn = document.getElementById(`deploy-btn-${projectId}`);
-        if (!selectEl) return;
+        const selectEl    = document.getElementById(`build-version-${projectId}`);
+        const deployBtn   = document.getElementById(`deploy-btn-${projectId}`);
+        const dropdown    = document.getElementById(`ver-dropdown-${projectId}`);
+        const trigger     = document.getElementById(`ver-trigger-${projectId}`);
+        const menu        = document.getElementById(`ver-menu-${projectId}`);
+        if (!selectEl || !dropdown || !trigger || !menu) return;
 
-        selectEl.innerHTML = '<option value="">Loading versions...</option>';
+        const verNum  = trigger.querySelector('.ver-num');
+        const verDate = trigger.querySelector('.ver-date');
+
+        // Reset to loading state
+        verNum.textContent  = 'Loading...';
+        verDate.textContent = '';
+        menu.innerHTML = '';
         deployBtn.disabled = true;
+
+        // ── Helper: select an item ──────────────────────────────────────────
+        function selectItem(number, date, itemEl) {
+            verNum.textContent  = number;
+            verDate.textContent = date || '';
+            selectEl.value = number;   // keep hidden select in sync
+            menu.querySelectorAll('.ver-dropdown-item').forEach(i => i.classList.remove('selected'));
+            if (itemEl) itemEl.classList.add('selected');
+            dropdown.classList.remove('open');
+        }
+
+        // ── Toggle open/close on trigger click ─────────────────────────────
+        // Remove any old listener first to avoid duplicates on branch change
+        const newTrigger = trigger.cloneNode(true);
+        trigger.replaceWith(newTrigger);
+        const triggerEl = document.getElementById(`ver-trigger-${projectId}`);
+
+        triggerEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('open');
+        });
+
+        // Close on outside click (delegated, registered once per dropdown)
+        if (!dropdown.dataset.outsideListenerSet) {
+            dropdown.dataset.outsideListenerSet = '1';
+            document.addEventListener('click', () => dropdown.classList.remove('open'));
+        }
 
         try {
             const response = await fetch(`/api/build/last-success-list?configId=${buildConfig}&branch=${branch}`);
             if (response.ok) {
                 const builds = await response.json();
-                selectEl.innerHTML = '';
 
                 if (builds && builds.length > 0) {
+                    // Populate hidden select
+                    selectEl.innerHTML = '';
                     builds.forEach(build => {
                         const opt = document.createElement('option');
                         opt.value = build.number;
-                        opt.innerText = build.number;
                         selectEl.appendChild(opt);
                     });
+
+                    // Populate custom menu
+                    menu.innerHTML = '';
+                    builds.forEach((build, idx) => {
+                        const dateStr = build.startDate ? formatDate(build.startDate) : '';
+                        const item = document.createElement('div');
+                        item.className = 'ver-dropdown-item' + (idx === 0 ? ' selected' : '');
+                        item.innerHTML = `<span class="ver-item-num">${build.number}</span><span class="ver-item-date">${dateStr}</span>`;
+                        item.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            selectItem(build.number, dateStr, item);
+                        });
+                        menu.appendChild(item);
+                    });
+
+                    // Pre-select first item
+                    const first = builds[0];
+                    const firstDate = first.startDate ? formatDate(first.startDate) : '';
+                    const verNumEl  = document.getElementById(`ver-trigger-${projectId}`).querySelector('.ver-num');
+                    const verDateEl = document.getElementById(`ver-trigger-${projectId}`).querySelector('.ver-date');
+                    verNumEl.textContent  = first.number;
+                    verDateEl.textContent = firstDate;
+                    selectEl.value = first.number;
+
                     deployBtn.disabled = false;
                 } else {
-                    const opt = document.createElement('option');
-                    opt.value = '';
-                    opt.innerText = 'No successful builds found';
-                    selectEl.appendChild(opt);
+                    menu.innerHTML = '<div class="ver-dropdown-item" style="color:#6b7280;cursor:default;">No successful builds found</div>';
+                    const trigNum = document.getElementById(`ver-trigger-${projectId}`).querySelector('.ver-num');
+                    trigNum.textContent = 'No builds';
                     deployBtn.disabled = true;
                 }
             } else {
-                throw new Error('Failed to load successful builds');
+                throw new Error('Failed to load');
             }
         } catch (error) {
-            console.error(`Error loading successful builds for ${projectId}:`, error);
-            selectEl.innerHTML = '<option value="">Error loading versions</option>';
+            console.error(`Error loading builds for ${projectId}:`, error);
+            const trigNum = document.getElementById(`ver-trigger-${projectId}`).querySelector('.ver-num');
+            trigNum.textContent = 'Error loading';
             deployBtn.disabled = true;
         }
     }

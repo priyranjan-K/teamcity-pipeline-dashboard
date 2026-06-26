@@ -169,7 +169,7 @@ public class TeamCityService {
         String uri = "/app/rest/builds?locator=buildType:" + configId +
                      (branch != null && !branch.isEmpty() ? ",branch:" + branch : "") +
                      ",status:SUCCESS,count:" + count + ",defaultFilter:false" +
-                     "&fields=build(id,number,status,branchName,buildTypeId,state)";
+                     "&fields=build(id,number,status,branchName,buildTypeId,state,startDate)";
 
         return webClient.get()
                 .uri(uri)
@@ -188,6 +188,8 @@ public class TeamCityService {
                             resp.setState(String.valueOf(build.getOrDefault("state", "finished")));
                             resp.setBranchName(String.valueOf(build.getOrDefault("branchName", branch)));
                             resp.setBuildTypeId(configId);
+                            Object sd = build.get("startDate");
+                            if (sd != null) resp.setStartDate(sd.toString());
                             list.add(resp);
                         }
                     }
@@ -214,7 +216,10 @@ public class TeamCityService {
                             mb.setNumber("#" + (baseBuildNum - i));  // e.g. #50, #49, #48 ...
                             mb.setBuildTypeId(configId);
                             mb.setBranchName(branch != null && !branch.isEmpty() ? branch : "main");
-                            mb.setTriggerTime(Instant.now().minusSeconds(3600L * (i + 1)));
+                            Instant start = Instant.now().minusSeconds(3600L * (i + 1));
+                            mb.setTriggerTime(start.minusSeconds(30));
+                            mb.setStartTime(start);
+                            mb.setEndTime(start.plusSeconds(25));
                             mb.setState("finished");
                             mb.setStatus("SUCCESS");
                             mb.setDurationSeconds(25);
