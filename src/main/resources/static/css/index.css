@@ -193,7 +193,7 @@ header {
 
 select {
     width: 100%;
-    background: rgba(0, 0, 0, 0.3);
+    background: #111827;
     border: 1px solid var(--card-border);
     border-radius: 8px;
     padding: 0.6rem 0.8rem;
@@ -202,6 +202,18 @@ select {
     outline: none;
     cursor: pointer;
     transition: all 0.3s ease;
+}
+
+/* Ensure option text is always readable — Windows native popup ignores rgba() */
+option {
+    background-color: #111827;
+    color: #f3f4f6;
+}
+
+option:hover,
+option:checked {
+    background-color: #1d4ed8;
+    color: #ffffff;
 }
 
 select:focus {

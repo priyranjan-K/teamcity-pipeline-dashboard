@@ -266,6 +266,10 @@ public class TeamCityService {
         resp.setHref("/viewBuild.html?buildId=" + mb.getId());
         resp.setWebUrl("http://localhost:8111/viewBuild.html?buildId=" + mb.getId());
         resp.setTriggeredBy("admin (Dashboard)");
+        Instant triggerOrStart = mb.getStartTime() != null ? mb.getStartTime() : mb.getTriggerTime();
+        if (triggerOrStart != null) {
+            resp.setStartDate(triggerOrStart.toString());
+        }
 
         if ("CANCELED".equals(mb.getStatus())) {
             resp.setState("finished");

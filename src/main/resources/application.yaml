@@ -43,3 +43,36 @@ teamcity:
         uat1: http://uat1.example.com/gamma
         test: http://test.example.com/gamma
         prod: http://prod.example.com/gamma
+    - id: project-delta
+      name: Project Delta
+      environments: [dev, uat, uat1, test, prod]
+      buildConfigId: MyProject_Project1
+      deployConfigId: Delta_Deploy
+      healthCheckUrls:
+        dev: http://dev.example.com/delta
+        uat: http://uat.example.com/delta
+        uat1: http://uat1.example.com/delta
+        test: http://test.example.com/delta
+        prod: http://prod.example.com/delta
+    - id: project-echo
+      name: Project Echo
+      environments: [dev, uat, uat1, test, prod]
+      buildConfigId: MyProject_Project1
+      deployConfigId: Echo_Deploy
+      healthCheckUrls:
+        dev: http://dev.example.com/echo
+        uat: http://uat.example.com/echo
+        uat1: http://uat1.example.com/echo
+        test: http://test.example.com/echo
+        prod: http://prod.example.com/echo
+    - id: project-foxtrot
+      name: Project Foxtrot
+      environments: [dev, uat, uat1, test, prod]
+      buildConfigId: MyProject_Project1
+      deployConfigId: Foxtrot_Deploy
+      healthCheckUrls:
+        dev: http://dev.example.com/foxtrot
+        uat: http://uat.example.com/foxtrot
+        uat1: http://uat1.example.com/foxtrot
+        test: http://test.example.com/foxtrot
+        prod: http://prod.example.com/foxtrot

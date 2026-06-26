@@ -34,7 +34,15 @@ public class BuildApiController {
 
     @PostMapping("/deploy/trigger")
     public Mono<BuildResponse> triggerDeploy(@RequestBody BuildRequest request) {
-        return teamCityService.triggerBuild(request.getConfigId(), request.getBranch(), request.getEnvironment(), request.getBuildNumber());
+        List<String> envs = request.getEnvironments();
+        String envStr;
+        if (envs == null || envs.isEmpty()) {
+            envStr = request.getEnvironment();
+        } else {
+            envStr = String.join(",", envs);
+        }
+
+        return teamCityService.triggerBuild(request.getConfigId(), request.getBranch(), envStr, request.getBuildNumber());
     }
 
     @PostMapping("/build/cancel/{buildId}")

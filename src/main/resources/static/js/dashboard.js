@@ -27,17 +27,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const deployConfig = card.dataset.deployConfig;
         
         const branchSelect = card.querySelector('.branch-selector');
-        const envSelect = card.querySelector('.env-selector');
-        
+        const envPillsContainer = card.querySelector('.env-pills');
+
         const buildBtn = card.querySelector('.trigger-build-btn');
         const deployBtn = card.querySelector('.trigger-deploy-btn');
-        
+
         const cancelBuildBtn = card.querySelector('.cancel-build-btn');
         const cancelDeployBtn = card.querySelector('.cancel-deploy-btn');
-        
+
         const infoBuildBtn = card.querySelector('.info-build-btn');
         const infoDeployBtn = card.querySelector('.info-deploy-btn');
-        
+
         // Fetch and load branches dynamically
         await loadBranches(projectId, branchSelect, buildConfig);
 
@@ -50,19 +50,39 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Env pill toggle — click to select/deselect; at least 1 must stay selected
+        if (envPillsContainer) {
+            const pills = envPillsContainer.querySelectorAll('.env-pill');
+            if (pills.length > 0) pills[0].classList.add('selected');
+            pills.forEach(pill => {
+                pill.addEventListener('click', () => {
+                    const isSelected = pill.classList.contains('selected');
+                    const selectedCount = envPillsContainer.querySelectorAll('.env-pill.selected').length;
+                    if (isSelected && selectedCount === 1) return; // keep at least 1
+                    pill.classList.toggle('selected');
+                });
+            });
+        }
+
         // Trigger Build button
         buildBtn.addEventListener('click', () => {
             const branch = branchSelect.value;
             triggerBuild(projectId, buildConfig, branch);
         });
 
-        // Trigger Deploy button
+        // Trigger Deploy button — deploys to ALL selected envs sequentially
         deployBtn.addEventListener('click', () => {
             const branch = branchSelect.value;
-            const env = envSelect.value;
             const versionSelect = card.querySelector('.build-version-selector');
             const buildNumber = versionSelect ? versionSelect.value : null;
-            triggerDeploy(projectId, deployConfig, branch, env, buildNumber);
+            const selectedEnvs = envPillsContainer
+                ? [...envPillsContainer.querySelectorAll('.env-pill.selected')].map(p => p.dataset.env)
+                : [];
+            if (selectedEnvs.length === 0) {
+                showToast('Please select at least one environment.', 'error');
+                return;
+            }
+            triggerDeployMulti(projectId, deployConfig, branch, selectedEnvs, buildNumber);
         });
 
         // Cancel buttons
@@ -226,38 +246,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Trigger Deployment
-    async function triggerDeploy(projectId, configId, branch, environment, buildNumber) {
+    // Trigger Deployment to multiple environments in a single API call
+    async function triggerDeployMulti(projectId, configId, branch, environments, buildNumber) {
         const deployBtn = document.getElementById(`deploy-btn-${projectId}`);
         const buildBtn = document.getElementById(`build-btn-${projectId}`);
-        
+
         deployBtn.disabled = true;
-        buildBtn.disabled = true; // Lock build during deployment
-        
-        showToast(`Deploying build ${buildNumber} on branch ${branch} to OpenShift [${environment.toUpperCase()}]`, 'info');
-        
+        buildBtn.disabled = true;
+
+        const envList = environments.map(e => e.toUpperCase()).join(', ');
+        showToast(`Deploying build ${buildNumber} to [${envList}]...`, 'info');
+
         try {
             const response = await fetch('/api/deploy/trigger', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ configId, branch, environment, buildNumber })
+                body: JSON.stringify({ configId, branch, environments, buildNumber })
             });
-            
             if (response.ok) {
                 const data = await response.json();
-                showToast(`Deploy ${data.number} started.`, 'success');
-                startPolling(projectId, data.id, 'deploy');
+                if (data && data.id) {
+                    showToast(`Deploy to [${envList}] started (#${data.number}).`, 'success');
+                    startPolling(projectId, data.id, 'deploy');
+                } else {
+                    showToast(`No deployments were triggered.`, 'warning');
+                    deployBtn.disabled = false;
+                    buildBtn.disabled = false;
+                }
             } else {
-                showToast('Deployment trigger failed.', 'error');
+                showToast(`Failed to trigger deploy to [${envList}].`, 'error');
                 deployBtn.disabled = false;
                 buildBtn.disabled = false;
             }
         } catch (error) {
-            console.error('Error triggering deployment:', error);
-            showToast('Error connecting to Server.', 'error');
+            console.error(`Error triggering deploy multi:`, error);
+            showToast(`Error deploying to [${envList}].`, 'error');
             deployBtn.disabled = false;
             buildBtn.disabled = false;
         }
+    }
+
+    // Single-env deploy wrapper (backward compat)
+    async function triggerDeploy(projectId, configId, branch, environment, buildNumber) {
+        return triggerDeployMulti(projectId, configId, branch, [environment], buildNumber);
     }
 
     // Start Polling Loop for a given build ID
@@ -395,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Hide live panel after 10 seconds of completion
                 setTimeout(() => {
-                    if (!activePolls[key]) {
+                    if (!activePolls[key] && !activeJobs[key]) {
                         document.getElementById(`${type}-live-${projectId}`).style.display = 'none';
                     }
                 }, 10000);
@@ -441,6 +472,30 @@ document.addEventListener('DOMContentLoaded', () => {
         return result.trim();
     }
 
+    // Format build dates from ISO-8601 or TeamCity format to human readable format
+    function formatDate(dateStr) {
+        if (!dateStr) return 'N/A';
+        try {
+            if (dateStr.includes('T') && !dateStr.includes('-') && !dateStr.includes(':')) {
+                // TeamCity format like 20260625T100000+0000
+                const y = dateStr.substring(0, 4);
+                const m = dateStr.substring(4, 6);
+                const d = dateStr.substring(6, 8);
+                const hh = dateStr.substring(9, 11);
+                const mm = dateStr.substring(11, 13);
+                const ss = dateStr.substring(13, 15);
+                return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+            }
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        } catch (e) {
+            console.error('Error formatting date:', e);
+            return dateStr;
+        }
+    }
+
     // Populate and show the modal with detailed job status information
     function showJobDetails(cacheKey) {
         const data = jobDetailsCache[cacheKey];
@@ -459,6 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const stateEl = document.getElementById('modal-state');
         const durationEl = document.getElementById('modal-duration');
         const triggeredByEl = document.getElementById('modal-triggered-by');
+        const buildDateEl = document.getElementById('modal-build-date');
         const reasonSection = document.getElementById('modal-reason-section');
         const reasonTextEl = document.getElementById('modal-reason-text');
         const tcLink = document.getElementById('modal-tc-link');
@@ -466,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const lastSuccessWrap = document.getElementById('modal-last-success-wrap');
 
         // Determine title
-        const type = cacheKey.endsWith('-build') ? 'Code Build' : 'OpenShift Deploy';
+        const type = cacheKey.endsWith('-build') ? 'Code Build' : 'Deploy';
         modalTitle.innerText = `${type} Details`;
         configIdEl.innerText = data.buildTypeId || 'N/A';
         
@@ -508,6 +564,9 @@ document.addEventListener('DOMContentLoaded', () => {
         durationEl.innerText = formatDuration(data.duration);
         if (triggeredByEl) {
             triggeredByEl.innerText = data.triggeredBy || 'N/A';
+        }
+        if (buildDateEl) {
+            buildDateEl.innerText = formatDate(data.startDate);
         }
 
         // Display status description/reason if available
@@ -900,8 +959,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div style="text-align: left; line-height: 1.5; pointer-events: auto;">
                         <strong>Homepage:</strong> <a href="${data.url}" target="_blank" style="color: var(--accent-blue); text-decoration: underline;">${data.url}</a><br/>
                         <strong>Health:</strong> <a href="${data.healthUrl}" target="_blank" style="color: var(--text-secondary); text-decoration: underline;">${data.healthUrl}</a><br/>
-                        <strong>Status:</strong> ${isUp ? '<span style="color: var(--status-success)">200 OK</span>' : '<span style="color: var(--status-failure)">Connection Error</span>'}<br/>
-                        <strong>Uptime Score:</strong> ${uptimePct}%
+                        <strong>Status:</strong> ${isUp ? '<span style="color: var(--status-success)">200 OK</span>' : '<span style="color: var(--status-failure)">Connection Error</span>'}
                     </div>
                 `;
 
@@ -953,8 +1011,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div style="text-align: left; line-height: 1.5; pointer-events: auto;">
                     <strong>Homepage:</strong> <span style="color: var(--text-secondary)">Unavailable</span><br/>
                     <strong>Health:</strong> <span style="color: var(--text-secondary)">Unavailable</span><br/>
-                    <strong>Status:</strong> <span style="color: var(--status-failure)">HTTP 503 Service Unavailable</span><br/>
-                    <strong>Uptime Score:</strong> ${uptimePct}%
+                    <strong>Status:</strong> <span style="color: var(--status-failure)">HTTP 503 Service Unavailable</span>
                 </div>
             `;
 
